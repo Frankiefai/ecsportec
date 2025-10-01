@@ -286,7 +286,22 @@
             margin: 10px 0;
             border-radius: 4px;
             font-size: 12px;
-            display: none;
+        }
+        .success-message {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .error-message {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
         }
         @media (max-width: 768px) {
             .time-slots {
@@ -320,16 +335,16 @@
 <body>
     <!-- 調試信息顯示區域 -->
     <div id="debug-info" class="debug-info"></div>
+    <div id="success-message" class="success-message" style="display: none;"></div>
+    <div id="error-message" class="error-message" style="display: none;"></div>
     
     <div class="container">
         <h1><i class="fas fa-table-tennis"></i> EC Pickleball</h1>
         <h3>🔥EC Sports匹克球球聚🔥</h3>
-        <h3>日期Date：3/10/2025（五）</h3>
+        <h3>日期Date：2/10/2025（四）</h3>
         <h3> 時間Time：1800-2300</h3>
         <h3> 地點Venue：國瑞路公園足球場</h3>
-            
         <h3>每小時收費：$25（可免費借用球拍及球）</h3>
-            
         
         <div class="tabs">
             <div class="tab active" data-tab="user">用戶報名</div>
@@ -351,9 +366,7 @@
             
             <div class="court-selection" id="court-selection">
                 <h2>第二步：為每個時間段選擇適合您技術水平的場地</h2>
-                <div id="time-court-container">
-                    <!-- 時間段和場地選擇將由JavaScript生成 -->
-                </div>
+                <div id="time-court-container"></div>
             </div>
             
             <div class="form-section" id="form-section" style="display: none;">
@@ -362,12 +375,10 @@
                     <label for="name">姓名:</label>
                     <input type="text" id="name" required>
                 </div>
-                
                 <div class="form-group">
                     <label for="phone">電話號碼:</label>
                     <input type="tel" id="phone" required>
                 </div>
-                
                 <button id="submit-btn">提交報名</button>
             </div>
             
@@ -386,7 +397,6 @@
             
             <div class="admin-panel" id="admin-panel" style="display: none;">
                 <h2><i class="fas fa-cog"></i> 管理後台</h2>
-                
                 <div class="stats">
                     <div class="stat-card">
                         <div class="stat-label">總報名人數</div>
@@ -407,10 +417,11 @@
                 </div>
                 
                 <div class="admin-controls">
-                    <button class="admin-btn delete" id="delete-selected"><i class="fas fa-trash"></i> 刪除選中</button>
-                    <button class="admin-btn mark" id="mark-processed"><i class="fas fa-check"></i> 標記已處理</button>
-                    <button class="admin-btn" id="export-data"><i class="fas fa-download"></i> 導出數據</button>
-                    <button class="admin-btn" id="view-player-stats"><i class="fas fa-users"></i> 玩家統計</button>
+                    <button class="admin-btn" id="test-api">測試API連接</button>
+                    <button class="admin-btn delete" id="delete-selected">刪除選中</button>
+                    <button class="admin-btn mark" id="mark-processed">標記已處理</button>
+                    <button class="admin-btn" id="export-data">導出數據</button>
+                    <button class="admin-btn" id="view-player-stats">玩家統計</button>
                 </div>
                 
                 <table id="registrations-table">
@@ -425,12 +436,9 @@
                             <th>狀態</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <!-- 報名數據將由JavaScript生成 -->
-                    </tbody>
+                    <tbody></tbody>
                 </table>
                 
-                <!-- 玩家統計表格 -->
                 <div id="player-stats-section" style="display: none; margin-top: 30px;">
                     <h3><i class="fas fa-user-chart"></i> 玩家報名統計</h3>
                     <table id="player-stats-table">
@@ -442,9 +450,7 @@
                                 <th>報名場地詳情</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <!-- 玩家統計數據將由JavaScript生成 -->
-                        </tbody>
+                        <tbody></tbody>
                     </table>
                 </div>
             </div>
@@ -452,16 +458,27 @@
     </div>
 
     <script>     
-        const API_URL = 'https://script.google.com/macros/s/AKfycbxX3cX0rCss09j-Mvo0opjbbjEDzAnTzzEwZKpo-q6N-FB1ppmrufYnxbJMu4SNdnKp-A/exec';
+        // 🔄 替換為你新部署的 Google Apps Script URL
+        const API_URL = 'https://script.google.com/macros/s/AKfycbx3NRyRH3S1BIDu8zQYpQvNMhKrgmg93tAlJK1W3xs-R0Ld87MOzmJj0H-iG9cZ8k5Efg/exec';
 
         // 調試功能
         function showDebugInfo(message, data = null) {
             console.log('🔍 DEBUG:', message, data);
             const debugDiv = document.getElementById('debug-info');
-            if (debugDiv) {
-                debugDiv.style.display = 'block';
-                debugDiv.innerHTML = `<strong>調試信息:</strong> ${message}` + (data ? `<br><pre>${JSON.stringify(data, null, 2)}</pre>` : '');
-            }
+            debugDiv.innerHTML = `<strong>調試信息:</strong> ${message}` + (data ? `<br><pre>${JSON.stringify(data, null, 2)}</pre>` : '');
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.getElementById('success-message');
+            successDiv.style.display = 'block';
+            successDiv.innerHTML = `✅ ${message}`;
+            setTimeout(() => successDiv.style.display = 'none', 5000);
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.style.display = 'block';
+            errorDiv.innerHTML = `❌ ${message}`;
         }
 
         document.addEventListener('DOMContentLoaded', function() {
@@ -523,6 +540,9 @@
                 renderCourtSelection();
                 updateSelectionSummary();
             });
+            
+            // 測試API連接按鈕
+            document.getElementById('test-api').addEventListener('click', testAPIConnection);
             
             // 渲染場地選擇
             function renderCourtSelection() {
@@ -604,16 +624,19 @@
             async function testAPIConnection() {
                 try {
                     showDebugInfo('正在測試API連接...');
-                    const response = await fetch(`${API_URL}?action=getData`);
+                    const response = await fetch(`${API_URL}?action=test`);
                     const data = await response.json();
                     
                     if (data.success) {
-                        showDebugInfo(`✅ API連接正常，當前有 ${data.registrations ? data.registrations.length : 0} 條報名記錄`);
+                        showDebugInfo(`✅ API連接正常: ${data.message}`);
+                        showSuccess('API連接正常！');
                     } else {
                         showDebugInfo('❌ API連接失敗:', data.error);
+                        showError('API連接失敗: ' + (data.error || '未知錯誤'));
                     }
                 } catch (error) {
                     showDebugInfo('❌ API連接錯誤:', error.message);
+                    showError('API連接錯誤: ' + error.message);
                 }
             }
             
@@ -699,11 +722,14 @@
                                 successCount++;
                                 // 更新本地名額計數
                                 courts[reg.court].remaining[reg.time]--;
+                                showSuccess(`成功報名: ${reg.time} Court ${reg.court}`);
                             } else {
                                 showDebugInfo('❌ 單個記錄提交失敗:', result.error);
+                                showError(`報名失敗 ${reg.time}: ${result.error}`);
                             }
                         } catch (error) {
                             showDebugInfo('❌ 提交錯誤:', error.message);
+                            showError(`提交錯誤 ${reg.time}: ${error.message}`);
                         }
                     }
                     
@@ -713,7 +739,7 @@
                         // 重新渲染場地選擇以更新名額顯示
                         renderCourtSelection();
                     } else {
-                        alert('報名失敗，請重試或聯繫管理員');
+                        alert('所有時段報名都失敗，請重試或聯繫管理員');
                     }
                     
                 } catch (error) {
@@ -745,6 +771,8 @@
                                 courts[reg.court].remaining[reg.time]--;
                             }
                         });
+                        
+                        showDebugInfo(`加載了 ${data.registrations.length} 條報名記錄`);
                     }
                 } catch (error) {
                     console.error('Error loading data:', error);
@@ -838,7 +866,7 @@
                 // 生成表格行
                 registrations.forEach((reg, index) => {
                     const row = document.createElement('tr');
-                    const statusClass = reg.status === '已處理' ? 'status-processed': 'status-pending';
+                    const statusClass = reg.status === '已處理' ? 'status-processed' : 'status-pending';
                     
                     row.innerHTML = `
                         <td><input type="checkbox" class="row-checkbox" data-id="${reg.id || index}"></td>
