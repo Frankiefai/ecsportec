@@ -410,655 +410,757 @@
     </div>
 
     <script>
-        // Supabase 配置
+        // Supabase 配置 - 需要替換為你的實際配置
         const SUPABASE_URL = 'https://uyspuzyrtmcdhlgfylfv.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5c3B1enlydG1jZGhsZ2Z5bGZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzODk3OTcsImV4cCI6MjA3NDk2NTc5N30.V4O-ctA7BZm8ui9bm-GTQyn-a8lYQU2Ih4F9Y4x5io4';
-
+        
+        // 初始化 Supabase
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     
-    // 初始化 Supabase
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    document.addEventListener('DOMContentLoaded', function() {
-        const timeSlots = ['1800-1900', '1900-2000', '2000-2100', '2100-2200', '2200-2300'];
-        
-        const courts = {
-            1: { remaining: {}, level: '2.5-3', name: 'Court 1' },
-            2: { remaining: {}, level: '2-2.5', name: 'Court 2' },
-            3: { remaining: {}, level: '0-2', name: 'Court 3' }
-        };
-        
-        let userSelection = {
-            times: [],
-            courts: {}
-        };
-
-        let allRegistrations = []; // 存儲所有報名記錄
-
-        // 初始化時從 Supabase 加載數據
-        loadDataFromSupabase();
-        
-        // 選項卡功能
-        document.querySelectorAll('.tab').forEach(tab => {
-            tab.addEventListener('click', function() {
-                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-                this.classList.add('active');
-                document.getElementById(`${this.dataset.tab}-tab`).classList.add('active');
-            });
-        });
-        
-        // 時間段選擇
-        document.querySelectorAll('.time-slot').forEach(slot => {
-            slot.addEventListener('click', function() {
-                this.classList.toggle('selected');
-                updateSelectionSummary();
-            });
-        });
-        
-        // 確認時間選擇
-        document.getElementById('confirm-times').addEventListener('click', function() {
-            const selectedTimes = Array.from(document.querySelectorAll('.time-slot.selected')).map(el => el.dataset.time);
+        document.addEventListener('DOMContentLoaded', function() {
+            const timeSlots = ['1800-1900', '1900-2000', '2000-2100', '2100-2200', '2200-2300'];
             
-            if (selectedTimes.length === 0) {
-                alert('請至少選擇一個時間段');
-                return;
-            }
+            const courts = {
+                1: { remaining: {}, level: '2.5-3', name: 'Court 1' },
+                2: { remaining: {}, level: '2-2.5', name: 'Court 2' },
+                3: { remaining: {}, level: '0-2', name: 'Court 3' }
+            };
             
-            userSelection.times = selectedTimes;
-            document.getElementById('court-selection').style.display = 'block';
-            renderCourtSelection();
-            updateSelectionSummary();
-        });
-        
-        // 從 Supabase 加載數據
-        async function loadDataFromSupabase() {
-            try {
-                showLoading(true);
-                
-                // 獲取所有報名記錄
-                const { data: registrations, error } = await supabase
-                    .from('registrations')
-                    .select('*')
-                    .order('created_at', { ascending: false });
-                
-                if (error) throw error;
-                
-                allRegistrations = registrations || [];
-                
-                // 計算剩餘名額
-                calculateRemainingSlots(allRegistrations);
-                
-                // 重新渲染場地選擇
-                if (document.getElementById('court-selection').style.display === 'block') {
-                    renderCourtSelection();
-                }
-                
-            } catch (error) {
-                console.error('加載數據錯誤:', error);
-                showError('加載數據失敗');
-            } finally {
-                showLoading(false);
-            }
-        }
-        
-        // 計算剩餘名額
-        function calculateRemainingSlots(registrations) {
-            // 重置所有名額
-            timeSlots.forEach(time => {
-                courts[1].remaining[time] = 6;
-                courts[2].remaining[time] = 6;
-                courts[3].remaining[time] = 6;
-            });
+            let userSelection = {
+                times: [],
+                courts: {}
+            };
+    
+            let allRegistrations = []; // 存儲所有報名記錄
+    
+            // 初始化時從 Supabase 加載數據
+            loadDataFromSupabase();
             
-            // 根據報名記錄計算剩餘名額
-            registrations.forEach(reg => {
-                if (courts[reg.court] && courts[reg.court].remaining[reg.time] !== undefined) {
-                    courts[reg.court].remaining[reg.time]--;
-                }
-            });
-        }
-        
-        // 渲染場地選擇
-        function renderCourtSelection() {
-            const container = document.getElementById('time-court-container');
-            container.innerHTML = '';
-            
-            userSelection.times.forEach(time => {
-                const timeCourtItem = document.createElement('div');
-                timeCourtItem.className = 'time-court-item';
-                
-                const header = document.createElement('div');
-                header.className = 'time-court-header';
-                header.textContent = `時間段: ${formatTimeDisplay(time)}`;
-                
-                const courtOptions = document.createElement('div');
-                courtOptions.className = 'court-options';
-                
-                for (let courtId = 1; courtId <= 3; courtId++) {
-                    const courtOption = document.createElement('div');
-                    courtOption.className = 'court-option';
-                    courtOption.dataset.court = courtId;
-                    courtOption.dataset.time = time;
-                    
-                    const isFull = courts[courtId].remaining[time] <= 0;
-                    if (isFull) {
-                        courtOption.classList.add('full');
-                    }
-                    
-                    courtOption.innerHTML = `
-                        <div>Court ${courtId}</div>
-                        <div>Level ${courts[courtId].level}</div>
-                        <div>剩餘: ${courts[courtId].remaining[time]}/6</div>
-                    `;
-                    
-                    if (!isFull) {
-                        courtOption.addEventListener('click', function() {
-                            document.querySelectorAll(`.court-option[data-time="${time}"]`).forEach(opt => {
-                                opt.classList.remove('selected');
-                            });
-                            this.classList.add('selected');
-                            userSelection.courts[time] = courtId;
-                            updateSelectionSummary();
-                            document.getElementById('form-section').style.display = 'block';
-                        });
-                    }
-                    courtOptions.appendChild(courtOption);
-                }
-                timeCourtItem.appendChild(header);
-                timeCourtItem.appendChild(courtOptions);
-                container.appendChild(timeCourtItem);
-            });
-        }
-        
-        // 格式化時間顯示
-        function formatTimeDisplay(time) {
-            const start = time.substring(0, 2) + ':' + time.substring(2, 4);
-            const end = time.substring(5, 7) + ':' + time.substring(7, 9);
-            return `${start}-${end}`;
-        }
-        
-        // 更新選擇摘要
-        function updateSelectionSummary() {
-            const selectedTimes = Array.from(document.querySelectorAll('.time-slot.selected')).map(el => el.dataset.time);
-            let summaryText = '';
-            
-            if (selectedTimes.length === 0) {
-                summaryText = '尚未選擇任何時間段';
-            } else {
-                summaryText = `已選擇時間段: ${selectedTimes.map(formatTimeDisplay).join(', ')}`;
-                const selectedCourts = [];
-                for (const time in userSelection.courts) {
-                    selectedCourts.push(`${formatTimeDisplay(time)} → Court ${userSelection.courts[time]}`);
-                }
-                if (selectedCourts.length > 0) {
-                    summaryText += `<br>已選擇場地: ${selectedCourts.join(', ')}`;
-                } else if (document.getElementById('court-selection').style.display === 'block') {
-                    summaryText += '<br>請為每個時間段選擇場地';
-                } else {
-                    summaryText += '<br>請點擊"確認時間選擇"繼續';
-                }
-            }
-            document.getElementById('selected-summary').innerHTML = summaryText;
-        }
-        
-        // 提交報名到 Supabase
-        document.getElementById('submit-btn').addEventListener('click', async function() {
-            const name = document.getElementById('name').value.trim();
-            let phone = document.getElementById('phone').value.trim();
-            
-            // 電話號碼驗證 - 必須是8位數字
-            if (!name) {
-                showError('請填寫姓名');
-                return;
-            }
-            
-            if (!phone) {
-                showError('請填寫電話號碼');
-                return;
-            }
-            
-            // 移除所有非數字字符，只保留數字
-            phone = phone.replace(/\D/g, '');
-            
-            // 檢查是否為8位數字
-            if (phone.length !== 8) {
-                showError('電話號碼必須是8位數字');
-                return;
-            }
-            
-            if (userSelection.times.length === 0) {
-                showError('請選擇至少一個時間段');
-                return;
-            }
-            
-            // 檢查名額
-            for (const time of userSelection.times) {
-                if (!userSelection.courts[time]) {
-                    showError(`請為時間段 ${formatTimeDisplay(time)} 選擇場地`);
-                    return;
-                }
-                const courtId = userSelection.courts[time];
-                if (courts[courtId].remaining[time] <= 0) {
-                    showError(`Court ${courtId} 的 ${formatTimeDisplay(time)} 時段已滿，請重新選擇`);
-                    return;
-                }
-            }
-            
-            const submitBtn = document.getElementById('submit-btn');
-            submitBtn.disabled = true;
-            submitBtn.textContent = '提交中...';
-            
-            try {
-                // 為每個選擇創建報名記錄
-                const newRegistrations = userSelection.times.map(time => ({
-                    name: name,
-                    phone: phone, // 現在是8位純數字
-                    court: userSelection.courts[time],
-                    time: time,
-                    status: '待處理'
-                }));
-                
-                // 插入到 Supabase
-                const { data, error } = await supabase
-                    .from('registrations')
-                    .insert(newRegistrations);
-                
-                if (error) throw error;
-                
-                showSuccess(`報名成功！<br>姓名: ${name}<br>電話: ${phone}<br>成功報名 ${newRegistrations.length} 個時段`);
-                
-                resetForm();
-                // 重新加載數據更新名額顯示
-                await loadDataFromSupabase();
-                
-            } catch (error) {
-                console.error('報名錯誤:', error);
-                showError('報名失敗，請重試');
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = '提交報名';
-            }
-        });
-        
-        function resetForm() {
-            document.getElementById('name').value = '';
-            document.getElementById('phone').value = '';
-            document.querySelectorAll('.time-slot.selected').forEach(s => s.classList.remove('selected'));
-            document.querySelectorAll('.court-option.selected').forEach(c => c.classList.remove('selected'));
-            document.getElementById('court-selection').style.display = 'none';
-            document.getElementById('form-section').style.display = 'none';
-            userSelection = { times: [], courts: {} };
-            updateSelectionSummary();
-        }
-        
-        // 顯示加載狀態
-        function showLoading(loading) {
-            const elements = document.querySelectorAll('.time-slot, .court-option, button');
-            elements.forEach(el => {
-                if (loading) {
-                    el.classList.add('loading');
-                } else {
-                    el.classList.remove('loading');
-                }
-            });
-        }
-        
-        function showSuccess(message) {
-            const successDiv = document.getElementById('success-message');
-            successDiv.style.display = 'block';
-            successDiv.innerHTML = message;
-            setTimeout(() => successDiv.style.display = 'none', 10000);
-        }
-        
-        function showError(message) {
-            const errorDiv = document.getElementById('error-message');
-            errorDiv.style.display = 'block';
-            errorDiv.innerHTML = message;
-            setTimeout(() => errorDiv.style.display = 'none', 5000);
-        }
-        
-        // 管理員功能
-        document.getElementById('admin-pass').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') adminLogin();
-        });
-        
-        document.getElementById('admin-login').addEventListener('click', adminLogin);
-        
-        async function adminLogin() {
-            const password = document.getElementById('admin-pass').value;
-            if (password === 'lingnan18') {
-                document.getElementById('admin-panel').style.display = 'block';
-                await loadAdminData();
-            } else {
-                showError('密碼錯誤');
-            }
-        }
-        
-        async function loadAdminData() {
-            try {
-                const { data: registrations, error } = await supabase
-                    .from('registrations')
-                    .select('*')
-                    .order('created_at', { ascending: false });
-                
-                if (error) throw error;
-                
-                allRegistrations = registrations || [];
-                displayAdminData(allRegistrations);
-            } catch (error) {
-                console.error('加載管理數據錯誤:', error);
-                showError('加載數據失敗');
-            }
-        }
-        
-        function displayAdminData(registrations) {
-            const tbody = document.querySelector('#registrations-table tbody');
-            tbody.innerHTML = '';
-            
-            document.getElementById('total-registrations').textContent = registrations.length;
-            
-            // 今日報名人數
-            const today = new Date().toLocaleDateString('zh-TW');
-            const todayCount = registrations.filter(r => {
-                const regDate = new Date(r.created_at).toLocaleDateString('zh-TW');
-                return regDate === today;
-            }).length;
-            document.getElementById('today-registrations').textContent = todayCount;
-            
-            // 熱門場地和時段統計
-            const courtCount = {1: 0, 2: 0, 3: 0};
-            const timeCount = {};
-            timeSlots.forEach(time => timeCount[time] = 0);
-            
-            registrations.forEach(reg => {
-                courtCount[reg.court]++;
-                timeCount[reg.time]++;
-            });
-            
-            // 找出最熱門場地
-            let popularCourt = '-';
-            let maxCourt = 0;
-            for (const court in courtCount) {
-                if (courtCount[court] > maxCourt) {
-                    maxCourt = courtCount[court];
-                    popularCourt = court;
-                }
-            }
-            document.getElementById('popular-court').textContent = popularCourt !== '-' ? `Court ${popularCourt}` : '-';
-            
-            // 找出最熱門時段
-            let popularTime = '-';
-            let maxTime = 0;
-            for (const time in timeCount) {
-                if (timeCount[time] > maxTime) {
-                    maxTime = timeCount[time];
-                    popularTime = time;
-                }
-            }
-            document.getElementById('popular-time').textContent = popularTime !== '-' ? formatTimeDisplay(popularTime) : '-';
-            
-            // 生成表格行
-            registrations.forEach((reg) => {
-                const row = document.createElement('tr');
-                const statusClass = reg.status === '已處理' ? 'status-processed' : 'status-pending';
-                
-                row.innerHTML = `
-                    <td><input type="checkbox" class="row-checkbox" data-id="${reg.id}"></td>
-                    <td>${new Date(reg.created_at).toLocaleString('zh-TW')}</td>
-                    <td>${reg.name}</td>
-                    <td>${formatPhoneNumber(reg.phone)}</td>
-                    <td>Court ${reg.court}</td>
-                    <td>${formatTimeDisplay(reg.time)}</td>
-                    <td class="${statusClass}">${reg.status}</td>
-                `;
-                tbody.appendChild(row);
-            });
-        }
-
-        // 格式化電話號碼顯示 (8位數字)
-        function formatPhoneNumber(phone) {
-            // 確保是8位數字
-            const cleanPhone = phone.replace(/\D/g, '');
-            return cleanPhone.length === 8 ? cleanPhone : phone;
-        }
-
-        // 全選/取消全選功能
-        document.getElementById('select-all').addEventListener('change', function() {
-            const checkboxes = document.querySelectorAll('#registrations-table tbody .row-checkbox');
-            checkboxes.forEach(checkbox => {
-                checkbox.checked = this.checked;
-            });
-        });
-
-        // 刪除選中的報名記錄
-        document.getElementById('delete-selected').addEventListener('click', async function() {
-            const selectedCheckboxes = document.querySelectorAll('#registrations-table tbody .row-checkbox:checked');
-            
-            if (selectedCheckboxes.length === 0) {
-                showError('請先選擇要刪除的記錄');
-                return;
-            }
-            
-            if (!confirm(`確定要刪除選中的 ${selectedCheckboxes.length} 筆記錄嗎？`)) {
-                return;
-            }
-            
-            try {
-                const idsToDelete = Array.from(selectedCheckboxes).map(checkbox => checkbox.dataset.id);
-                
-                // 從 Supabase 刪除記錄
-                const { error } = await supabase
-                    .from('registrations')
-                    .delete()
-                    .in('id', idsToDelete);
-                
-                if (error) throw error;
-                
-                showSuccess(`成功刪除 ${idsToDelete.length} 筆記錄`);
-                
-                // 重新加載數據
-                await loadAdminData();
-                await loadDataFromSupabase(); // 更新名額顯示
-                
-            } catch (error) {
-                console.error('刪除錯誤:', error);
-                showError('刪除失敗，請重試');
-            }
-        });
-
-        // 標記選中的記錄為已處理
-        document.getElementById('mark-processed').addEventListener('click', async function() {
-            const selectedCheckboxes = document.querySelectorAll('#registrations-table tbody .row-checkbox:checked');
-            
-            if (selectedCheckboxes.length === 0) {
-                showError('請先選擇要標記的記錄');
-                return;
-            }
-            
-            try {
-                const idsToUpdate = Array.from(selectedCheckboxes).map(checkbox => checkbox.dataset.id);
-                
-                // 更新 Supabase 記錄
-                const { error } = await supabase
-                    .from('registrations')
-                    .update({ status: '已處理' })
-                    .in('id', idsToUpdate);
-                
-                if (error) throw error;
-                
-                showSuccess(`成功標記 ${idsToUpdate.length} 筆記錄為已處理`);
-                
-                // 重新加載數據
-                await loadAdminData();
-                
-            } catch (error) {
-                console.error('標記錯誤:', error);
-                showError('標記失敗，請重試');
-            }
-        });
-
-        // 導出數據 - 標準格式
-        document.getElementById('export-data').addEventListener('click', function() {
-            if (allRegistrations.length === 0) {
-                showError('沒有數據可導出');
-                return;
-            }
-            
-            let csvContent = "報名時間,姓名,電話,場地,時段,狀態\n";
-            
-            allRegistrations.forEach(reg => {
-                csvContent += `"${new Date(reg.created_at).toLocaleString('zh-TW')}","${reg.name}","${formatPhoneNumber(reg.phone)}","Court ${reg.court}","${formatTimeDisplay(reg.time)}","${reg.status}"\n`;
-            });
-            
-            const encodedUri = encodeURI("data:text/csv;charset=utf-8," + csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `EC_Sports_報名記錄_${new Date().toISOString().split('T')[0]}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            showSuccess('數據導出成功');
-        });
-
-        // 玩家統計
-        document.getElementById('view-player-stats').addEventListener('click', function() {
-            const playerStatsSection = document.getElementById('player-stats-section');
-            if (playerStatsSection.style.display === 'none') {
-                generatePlayerStats();
-                playerStatsSection.style.display = 'block';
-            } else {
-                playerStatsSection.style.display = 'none';
-            }
-        });
-
-        function generatePlayerStats() {
-            const playerStats = {};
-            
-            // 統計每個玩家的報名情況
-            allRegistrations.forEach(reg => {
-                const key = `${reg.name}|${formatPhoneNumber(reg.phone)}`;
-                if (!playerStats[key]) {
-                    playerStats[key] = {
-                        name: reg.name,
-                        phone: formatPhoneNumber(reg.phone),
-                        totalSlots: 0,
-                        courtDetails: {},
-                        timeSlots: []
-                    };
-                }
-                
-                playerStats[key].totalSlots++;
-                
-                // 統計每個場地的報名情況
-                const courtKey = `Court ${reg.court}`;
-                if (!playerStats[key].courtDetails[courtKey]) {
-                    playerStats[key].courtDetails[courtKey] = 0;
-                }
-                playerStats[key].courtDetails[courtKey]++;
-                
-                // 記錄時間段
-                playerStats[key].timeSlots.push({
-                    time: reg.time,
-                    court: reg.court,
-                    level: courts[reg.court].level
+            // 選項卡功能
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    document.getElementById(`${this.dataset.tab}-tab`).classList.add('active');
                 });
             });
             
-            // 生成表格
-            const tbody = document.querySelector('#player-stats-table tbody');
-            tbody.innerHTML = '';
-            
-            Object.values(playerStats).forEach(player => {
-                const row = document.createElement('tr');
-                
-                // 格式化場地詳情
-                const courtDetails = Object.entries(player.courtDetails)
-                    .map(([court, count]) => `${court}: ${count}次`)
-                    .join(', ');
-                
-                row.innerHTML = `
-                    <td>${player.name}</td>
-                    <td>${player.phone}</td>
-                    <td>${player.totalSlots}</td>
-                    <td>${courtDetails}</td>
-                `;
-                tbody.appendChild(row);
+            // 時間段選擇
+            document.querySelectorAll('.time-slot').forEach(slot => {
+                slot.addEventListener('click', function() {
+                    this.classList.toggle('selected');
+                    updateSelectionSummary();
+                });
             });
-        }
-
-        // 新增：導出結構化時間段CSV
-        function exportStructuredTimeSlotsCSV() {
-            if (allRegistrations.length === 0) {
-                showError('沒有數據可導出');
-                return;
-            }
-
-            let csvContent = '';
             
-            // 按時間段分組
-            timeSlots.forEach(timeSlot => {
-                const timeRegistrations = allRegistrations.filter(reg => reg.time === timeSlot);
+            // 確認時間選擇
+            document.getElementById('confirm-times').addEventListener('click', function() {
+                const selectedTimes = Array.from(document.querySelectorAll('.time-slot.selected')).map(el => el.dataset.time);
                 
-                if (timeRegistrations.length > 0) {
-                    // 時間段標題
-                    csvContent += `時間段: ${formatTimeDisplay(timeSlot)}\n`;
+                if (selectedTimes.length === 0) {
+                    alert('請至少選擇一個時間段');
+                    return;
+                }
+                
+                userSelection.times = selectedTimes;
+                document.getElementById('court-selection').style.display = 'block';
+                renderCourtSelection();
+                updateSelectionSummary();
+            });
+            
+            // 從 Supabase 加載數據
+            async function loadDataFromSupabase() {
+                try {
+                    showLoading(true);
                     
-                    // 按場地分組
-                    const courtGroups = {};
-                    timeRegistrations.forEach(reg => {
-                        if (!courtGroups[reg.court]) {
-                            courtGroups[reg.court] = [];
+                    // 獲取所有報名記錄
+                    const { data: registrations, error } = await supabase
+                        .from('registrations')
+                        .select('*')
+                        .order('created_at', { ascending: false });
+                    
+                    if (error) throw error;
+                    
+                    allRegistrations = registrations || [];
+                    
+                    // 計算剩餘名額
+                    calculateRemainingSlots(allRegistrations);
+                    
+                    // 重新渲染場地選擇
+                    if (document.getElementById('court-selection').style.display === 'block') {
+                        renderCourtSelection();
+                    }
+                    
+                } catch (error) {
+                    console.error('加載數據錯誤:', error);
+                    showError('加載數據失敗');
+                } finally {
+                    showLoading(false);
+                }
+            }
+            
+            // 計算剩餘名額
+            function calculateRemainingSlots(registrations) {
+                // 重置所有名額
+                timeSlots.forEach(time => {
+                    courts[1].remaining[time] = 6;
+                    courts[2].remaining[time] = 6;
+                    courts[3].remaining[time] = 6;
+                });
+                
+                // 根據報名記錄計算剩餘名額
+                registrations.forEach(reg => {
+                    if (courts[reg.court] && courts[reg.court].remaining[reg.time] !== undefined) {
+                        courts[reg.court].remaining[reg.time]--;
+                    }
+                });
+            }
+            
+            // 渲染場地選擇
+            function renderCourtSelection() {
+                const container = document.getElementById('time-court-container');
+                container.innerHTML = '';
+                
+                userSelection.times.forEach(time => {
+                    const timeCourtItem = document.createElement('div');
+                    timeCourtItem.className = 'time-court-item';
+                    
+                    const header = document.createElement('div');
+                    header.className = 'time-court-header';
+                    header.textContent = `時間段: ${formatTimeDisplay(time)}`;
+                    
+                    const courtOptions = document.createElement('div');
+                    courtOptions.className = 'court-options';
+                    
+                    for (let courtId = 1; courtId <= 3; courtId++) {
+                        const courtOption = document.createElement('div');
+                        courtOption.className = 'court-option';
+                        courtOption.dataset.court = courtId;
+                        courtOption.dataset.time = time;
+                        
+                        const isFull = courts[courtId].remaining[time] <= 0;
+                        if (isFull) {
+                            courtOption.classList.add('full');
                         }
-                        courtGroups[reg.court].push(reg);
-                    });
+                        
+                        courtOption.innerHTML = `
+                            <div>Court ${courtId}</div>
+                            <div>Level ${courts[courtId].level}</div>
+                            <div>剩餘: ${courts[courtId].remaining[time]}/6</div>
+                        `;
+                        
+                        if (!isFull) {
+                            courtOption.addEventListener('click', function() {
+                                document.querySelectorAll(`.court-option[data-time="${time}"]`).forEach(opt => {
+                                    opt.classList.remove('selected');
+                                });
+                                this.classList.add('selected');
+                                userSelection.courts[time] = courtId;
+                                updateSelectionSummary();
+                                document.getElementById('form-section').style.display = 'block';
+                            });
+                        }
+                        courtOptions.appendChild(courtOption);
+                    }
+                    timeCourtItem.appendChild(header);
+                    timeCourtItem.appendChild(courtOptions);
+                    container.appendChild(timeCourtItem);
+                });
+            }
+            
+            // 格式化時間顯示
+            function formatTimeDisplay(time) {
+                const start = time.substring(0, 2) + ':' + time.substring(2, 4);
+                const end = time.substring(5, 7) + ':' + time.substring(7, 9);
+                return `${start}-${end}`;
+            }
+            
+            // 更新選擇摘要
+            function updateSelectionSummary() {
+                const selectedTimes = Array.from(document.querySelectorAll('.time-slot.selected')).map(el => el.dataset.time);
+                let summaryText = '';
+                
+                if (selectedTimes.length === 0) {
+                    summaryText = '尚未選擇任何時間段';
+                } else {
+                    summaryText = `已選擇時間段: ${selectedTimes.map(formatTimeDisplay).join(', ')}`;
+                    const selectedCourts = [];
+                    for (const time in userSelection.courts) {
+                        selectedCourts.push(`${formatTimeDisplay(time)} → Court ${userSelection.courts[time]}`);
+                    }
+                    if (selectedCourts.length > 0) {
+                        summaryText += `<br>已選擇場地: ${selectedCourts.join(', ')}`;
+                    } else if (document.getElementById('court-selection').style.display === 'block') {
+                        summaryText += '<br>請為每個時間段選擇場地';
+                    } else {
+                        summaryText += '<br>請點擊"確認時間選擇"繼續';
+                    }
+                }
+                document.getElementById('selected-summary').innerHTML = summaryText;
+            }
+            
+            // 提交報名到 Supabase
+            document.getElementById('submit-btn').addEventListener('click', async function() {
+                const name = document.getElementById('name').value.trim();
+                let phone = document.getElementById('phone').value.trim();
+                
+                // 電話號碼驗證 - 必須是8位數字
+                if (!name) {
+                    showError('請填寫姓名');
+                    return;
+                }
+                
+                if (!phone) {
+                    showError('請填寫電話號碼');
+                    return;
+                }
+                
+                // 移除所有非數字字符，只保留數字
+                phone = phone.replace(/\D/g, '');
+                
+                // 檢查是否為8位數字
+                if (phone.length !== 8) {
+                    showError('電話號碼必須是8位數字');
+                    return;
+                }
+                
+                if (userSelection.times.length === 0) {
+                    showError('請選擇至少一個時間段');
+                    return;
+                }
+                
+                // 檢查名額
+                for (const time of userSelection.times) {
+                    if (!userSelection.courts[time]) {
+                        showError(`請為時間段 ${formatTimeDisplay(time)} 選擇場地`);
+                        return;
+                    }
+                    const courtId = userSelection.courts[time];
+                    if (courts[courtId].remaining[time] <= 0) {
+                        showError(`Court ${courtId} 的 ${formatTimeDisplay(time)} 時段已滿，請重新選擇`);
+                        return;
+                    }
+                }
+                
+                const submitBtn = document.getElementById('submit-btn');
+                submitBtn.disabled = true;
+                submitBtn.textContent = '提交中...';
+                
+                try {
+                    // 為每個選擇創建報名記錄
+                    const newRegistrations = userSelection.times.map(time => ({
+                        name: name,
+                        phone: phone, // 現在是8位純數字
+                        court: userSelection.courts[time],
+                        time: time,
+                        status: '待處理'
+                    }));
                     
-                    // 輸出每個場地的參與者
-                    Object.keys(courtGroups).sort().forEach(courtId => {
-                        const courtRegs = courtGroups[courtId];
-                        const level = courts[courtId].level;
-                        
-                        csvContent += `Court ${courtId} (Level ${level}) - ${courtRegs.length}人\n`;
-                        
-                        courtRegs.forEach((reg, index) => {
-                            csvContent += `,${reg.name},${formatPhoneNumber(reg.phone)}\n`;
-                        });
-                        
-                        csvContent += '\n'; // 空行分隔
-                    });
+                    // 插入到 Supabase
+                    const { data, error } = await supabase
+                        .from('registrations')
+                        .insert(newRegistrations);
                     
-                    csvContent += '\n'; // 時間段之間的空行
+                    if (error) throw error;
+                    
+                    showSuccess(`報名成功！<br>姓名: ${name}<br>電話: ${phone}<br>成功報名 ${newRegistrations.length} 個時段`);
+                    
+                    resetForm();
+                    // 重新加載數據更新名額顯示
+                    await loadDataFromSupabase();
+                    
+                } catch (error) {
+                    console.error('報名錯誤:', error);
+                    showError('報名失敗，請重試');
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '提交報名';
                 }
             });
-
-            const encodedUri = encodeURI("data:text/csv;charset=utf-8," + csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `EC_Sports_時間段分組_${new Date().toISOString().split('T')[0]}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
             
-            showSuccess('時間段分組數據導出成功');
-        }
-
-        // 新增按鈕：導出時間段分組數據
-        document.addEventListener('DOMContentLoaded', function() {
-            // 在管理控制按鈕組中添加新按鈕
-            const adminControls = document.querySelector('.admin-controls');
-            const timeSlotExportBtn = document.createElement('button');
-            timeSlotExportBtn.className = 'admin-btn';
-            timeSlotExportBtn.innerHTML = '<i class="fas fa-clock"></i> 導出時間段分組';
-            timeSlotExportBtn.id = 'export-time-slots';
-            timeSlotExportBtn.addEventListener('click', exportStructuredTimeSlotsCSV);
+            function resetForm() {
+                document.getElementById('name').value = '';
+                document.getElementById('phone').value = '';
+                document.querySelectorAll('.time-slot.selected').forEach(s => s.classList.remove('selected'));
+                document.querySelectorAll('.court-option.selected').forEach(c => c.classList.remove('selected'));
+                document.getElementById('court-selection').style.display = 'none';
+                document.getElementById('form-section').style.display = 'none';
+                userSelection = { times: [], courts: {} };
+                updateSelectionSummary();
+            }
             
-            // 插入到導出數據按鈕後面
-            adminControls.appendChild(timeSlotExportBtn);
+            // 顯示加載狀態
+            function showLoading(loading) {
+                const elements = document.querySelectorAll('.time-slot, .court-option, button');
+                elements.forEach(el => {
+                    if (loading) {
+                        el.classList.add('loading');
+                    } else {
+                        el.classList.remove('loading');
+                    }
+                });
+            }
+            
+            function showSuccess(message) {
+                const successDiv = document.getElementById('success-message');
+                successDiv.style.display = 'block';
+                successDiv.innerHTML = message;
+                setTimeout(() => successDiv.style.display = 'none', 10000);
+            }
+            
+            function showError(message) {
+                const errorDiv = document.getElementById('error-message');
+                errorDiv.style.display = 'block';
+                errorDiv.innerHTML = message;
+                setTimeout(() => errorDiv.style.display = 'none', 5000);
+            }
+            
+            // 管理員功能
+            document.getElementById('admin-pass').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') adminLogin();
+            });
+            
+            document.getElementById('admin-login').addEventListener('click', adminLogin);
+            
+            async function adminLogin() {
+                const password = document.getElementById('admin-pass').value;
+                if (password === 'lingnan18') {
+                    document.getElementById('admin-panel').style.display = 'block';
+                    await loadAdminData();
+                } else {
+                    showError('密碼錯誤');
+                }
+            }
+            
+            async function loadAdminData() {
+                try {
+                    const { data: registrations, error } = await supabase
+                        .from('registrations')
+                        .select('*')
+                        .order('created_at', { ascending: false });
+                    
+                    if (error) throw error;
+                    
+                    allRegistrations = registrations || [];
+                    displayAdminData(allRegistrations);
+                } catch (error) {
+                    console.error('加載管理數據錯誤:', error);
+                    showError('加載數據失敗');
+                }
+            }
+            
+            function displayAdminData(registrations) {
+                const tbody = document.querySelector('#registrations-table tbody');
+                tbody.innerHTML = '';
+                
+                document.getElementById('total-registrations').textContent = registrations.length;
+                
+                // 今日報名人數
+                const today = new Date().toLocaleDateString('zh-TW');
+                const todayCount = registrations.filter(r => {
+                    const regDate = new Date(r.created_at).toLocaleDateString('zh-TW');
+                    return regDate === today;
+                }).length;
+                document.getElementById('today-registrations').textContent = todayCount;
+                
+                // 熱門場地和時段統計
+                const courtCount = {1: 0, 2: 0, 3: 0};
+                const timeCount = {};
+                timeSlots.forEach(time => timeCount[time] = 0);
+                
+                registrations.forEach(reg => {
+                    courtCount[reg.court]++;
+                    timeCount[reg.time]++;
+                });
+                
+                // 找出最熱門場地
+                let popularCourt = '-';
+                let maxCourt = 0;
+                for (const court in courtCount) {
+                    if (courtCount[court] > maxCourt) {
+                        maxCourt = courtCount[court];
+                        popularCourt = court;
+                    }
+                }
+                document.getElementById('popular-court').textContent = popularCourt !== '-' ? `Court ${popularCourt}` : '-';
+                
+                // 找出最熱門時段
+                let popularTime = '-';
+                let maxTime = 0;
+                for (const time in timeCount) {
+                    if (timeCount[time] > maxTime) {
+                        maxTime = timeCount[time];
+                        popularTime = time;
+                    }
+                }
+                document.getElementById('popular-time').textContent = popularTime !== '-' ? formatTimeDisplay(popularTime) : '-';
+                
+                // 生成表格行
+                registrations.forEach((reg) => {
+                    const row = document.createElement('tr');
+                    const statusClass = reg.status === '已處理' ? 'status-processed' : 'status-pending';
+                    
+                    row.innerHTML = `
+                        <td><input type="checkbox" class="row-checkbox" data-id="${reg.id}"></td>
+                        <td>${new Date(reg.created_at).toLocaleString('zh-TW')}</td>
+                        <td>${reg.name}</td>
+                        <td>${formatPhoneNumber(reg.phone)}</td>
+                        <td>Court ${reg.court}</td>
+                        <td>${formatTimeDisplay(reg.time)}</td>
+                        <td class="${statusClass}">${reg.status}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+    
+                // 綁定全選功能
+                bindSelectAllFunction();
+            }
+    
+            // 格式化電話號碼顯示 (8位數字)
+            function formatPhoneNumber(phone) {
+                // 確保是8位數字
+                const cleanPhone = phone.replace(/\D/g, '');
+                return cleanPhone.length === 8 ? cleanPhone : phone;
+            }
+    
+            // 修復全選功能
+            function bindSelectAllFunction() {
+                const selectAllCheckbox = document.getElementById('select-all');
+                if (selectAllCheckbox) {
+                    // 移除舊的事件監聽器
+                    selectAllCheckbox.replaceWith(selectAllCheckbox.cloneNode(true));
+                    
+                    // 重新綁定事件
+                    document.getElementById('select-all').addEventListener('change', function() {
+                        const checkboxes = document.querySelectorAll('#registrations-table tbody .row-checkbox');
+                        checkboxes.forEach(checkbox => {
+                            checkbox.checked = this.checked;
+                        });
+                    });
+                }
+            }
+    
+            // 刪除選中的報名記錄
+            document.getElementById('delete-selected').addEventListener('click', async function() {
+                const selectedCheckboxes = document.querySelectorAll('#registrations-table tbody .row-checkbox:checked');
+                
+                if (selectedCheckboxes.length === 0) {
+                    showError('請先選擇要刪除的記錄');
+                    return;
+                }
+                
+                if (!confirm(`確定要刪除選中的 ${selectedCheckboxes.length} 筆記錄嗎？`)) {
+                    return;
+                }
+                
+                try {
+                    const idsToDelete = Array.from(selectedCheckboxes).map(checkbox => parseInt(checkbox.dataset.id));
+                    
+                    console.log('要刪除的ID:', idsToDelete);
+                    
+                    // 從 Supabase 刪除記錄
+                    const { error } = await supabase
+                        .from('registrations')
+                        .delete()
+                        .in('id', idsToDelete);
+                    
+                    if (error) throw error;
+                    
+                    showSuccess(`成功刪除 ${idsToDelete.length} 筆記錄`);
+                    
+                    // 重新加載數據
+                    await loadAdminData();
+                    await loadDataFromSupabase(); // 更新名額顯示
+                    
+                } catch (error) {
+                    console.error('刪除錯誤:', error);
+                    showError('刪除失敗，請重試: ' + error.message);
+                }
+            });
+    
+            // 標記選中的記錄為已處理
+            document.getElementById('mark-processed').addEventListener('click', async function() {
+                const selectedCheckboxes = document.querySelectorAll('#registrations-table tbody .row-checkbox:checked');
+                
+                if (selectedCheckboxes.length === 0) {
+                    showError('請先選擇要標記的記錄');
+                    return;
+                }
+                
+                try {
+                    const idsToUpdate = Array.from(selectedCheckboxes).map(checkbox => parseInt(checkbox.dataset.id));
+                    
+                    console.log('要更新的ID:', idsToUpdate);
+                    
+                    // 更新 Supabase 記錄
+                    const { error } = await supabase
+                        .from('registrations')
+                        .update({ status: '已處理' })
+                        .in('id', idsToUpdate);
+                    
+                    if (error) throw error;
+                    
+                    showSuccess(`成功標記 ${idsToUpdate.length} 筆記錄為已處理`);
+                    
+                    // 重新加載數據
+                    await loadAdminData();
+                    
+                } catch (error) {
+                    console.error('標記錯誤:', error);
+                    showError('標記失敗，請重試: ' + error.message);
+                }
+            });
+    
+            // 導出數據 - 標準格式
+            document.getElementById('export-data').addEventListener('click', function() {
+                if (allRegistrations.length === 0) {
+                    showError('沒有數據可導出');
+                    return;
+                }
+                
+                let csvContent = "報名時間,姓名,電話,場地,時段,狀態\n";
+                
+                allRegistrations.forEach(reg => {
+                    csvContent += `"${new Date(reg.created_at).toLocaleString('zh-TW')}","${reg.name}","${formatPhoneNumber(reg.phone)}","Court ${reg.court}","${formatTimeDisplay(reg.time)}","${reg.status}"\n`;
+                });
+                
+                const encodedUri = encodeURI("data:text/csv;charset=utf-8," + csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", `EC_Sports_報名記錄_${new Date().toISOString().split('T')[0]}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                showSuccess('數據導出成功');
+            });
+    
+            // 玩家統計
+            document.getElementById('view-player-stats').addEventListener('click', function() {
+                const playerStatsSection = document.getElementById('player-stats-section');
+                if (playerStatsSection.style.display === 'none') {
+                    generatePlayerStats();
+                    playerStatsSection.style.display = 'block';
+                    
+                    // 添加導出玩家統計CSV按鈕
+                    addPlayerStatsExportButton();
+                } else {
+                    playerStatsSection.style.display = 'none';
+                }
+            });
+    
+            function generatePlayerStats() {
+                const playerStats = {};
+                
+                // 統計每個玩家的報名情況
+                allRegistrations.forEach(reg => {
+                    const key = `${reg.name}|${formatPhoneNumber(reg.phone)}`;
+                    if (!playerStats[key]) {
+                        playerStats[key] = {
+                            name: reg.name,
+                            phone: formatPhoneNumber(reg.phone),
+                            totalSlots: 0,
+                            courtDetails: {},
+                            timeSlots: []
+                        };
+                    }
+                    
+                    playerStats[key].totalSlots++;
+                    
+                    // 統計每個場地的報名情況
+                    const courtKey = `Court ${reg.court}`;
+                    if (!playerStats[key].courtDetails[courtKey]) {
+                        playerStats[key].courtDetails[courtKey] = 0;
+                    }
+                    playerStats[key].courtDetails[courtKey]++;
+                    
+                    // 記錄時間段
+                    playerStats[key].timeSlots.push({
+                        time: reg.time,
+                        court: reg.court,
+                        level: courts[reg.court].level
+                    });
+                });
+                
+                // 生成表格
+                const tbody = document.querySelector('#player-stats-table tbody');
+                tbody.innerHTML = '';
+                
+                Object.values(playerStats).forEach(player => {
+                    const row = document.createElement('tr');
+                    
+                    // 格式化場地詳情
+                    const courtDetails = Object.entries(player.courtDetails)
+                        .map(([court, count]) => `${court}: ${count}次`)
+                        .join(', ');
+                    
+                    row.innerHTML = `
+                        <td>${player.name}</td>
+                        <td>${player.phone}</td>
+                        <td>${player.totalSlots}</td>
+                        <td>${courtDetails}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
+    
+            // 添加玩家統計導出按鈕
+            function addPlayerStatsExportButton() {
+                // 移除已存在的按鈕
+                const existingBtn = document.getElementById('export-player-stats');
+                if (existingBtn) {
+                    existingBtn.remove();
+                }
+                
+                const exportBtn = document.createElement('button');
+                exportBtn.id = 'export-player-stats';
+                exportBtn.className = 'admin-btn';
+                exportBtn.innerHTML = '<i class="fas fa-download"></i> 導出玩家統計CSV';
+                exportBtn.style.marginTop = '10px';
+                exportBtn.addEventListener('click', exportPlayerStatsCSV);
+                
+                const playerStatsSection = document.getElementById('player-stats-section');
+                playerStatsSection.appendChild(exportBtn);
+            }
+    
+            // 導出玩家統計CSV
+            function exportPlayerStatsCSV() {
+                const playerStats = {};
+                
+                // 重新統計玩家數據
+                allRegistrations.forEach(reg => {
+                    const key = `${reg.name}|${formatPhoneNumber(reg.phone)}`;
+                    if (!playerStats[key]) {
+                        playerStats[key] = {
+                            name: reg.name,
+                            phone: formatPhoneNumber(reg.phone),
+                            totalSlots: 0,
+                            courtDetails: {},
+                            timeDetails: {}
+                        };
+                    }
+                    
+                    playerStats[key].totalSlots++;
+                    
+                    // 統計每個場地的報名情況
+                    const courtKey = `Court ${reg.court}`;
+                    if (!playerStats[key].courtDetails[courtKey]) {
+                        playerStats[key].courtDetails[courtKey] = 0;
+                    }
+                    playerStats[key].courtDetails[courtKey]++;
+                    
+                    // 統計每個時間段的報名情況
+                    const timeKey = reg.time;
+                    if (!playerStats[key].timeDetails[timeKey]) {
+                        playerStats[key].timeDetails[timeKey] = [];
+                    }
+                    playerStats[key].timeDetails[timeKey].push(`Court ${reg.court}`);
+                });
+    
+                let csvContent = "姓名,電話,總報名時段數,各場地報名次數,各時段報名詳情\n";
+                
+                Object.values(playerStats).forEach(player => {
+                    const courtDetails = Object.entries(player.courtDetails)
+                        .map(([court, count]) => `${court}:${count}`)
+                        .join('; ');
+                        
+                    const timeDetails = Object.entries(player.timeDetails)
+                        .map(([time, courts]) => `${formatTimeDisplay(time)}:${courts.join(',')}`)
+                        .join('; ');
+                    
+                    csvContent += `"${player.name}","${player.phone}","${player.totalSlots}","${courtDetails}","${timeDetails}"\n`;
+                });
+                
+                const encodedUri = encodeURI("data:text/csv;charset=utf-8," + csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", `EC_Sports_玩家統計_${new Date().toISOString().split('T')[0]}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                showSuccess('玩家統計數據導出成功');
+            }
+    
+            // 新增：導出結構化時間段CSV
+            function exportStructuredTimeSlotsCSV() {
+                if (allRegistrations.length === 0) {
+                    showError('沒有數據可導出');
+                    return;
+                }
+    
+                let csvContent = '';
+                
+                // 按時間段分組
+                timeSlots.forEach(timeSlot => {
+                    const timeRegistrations = allRegistrations.filter(reg => reg.time === timeSlot);
+                    
+                    if (timeRegistrations.length > 0) {
+                        // 時間段標題
+                        csvContent += `時間段: ${formatTimeDisplay(timeSlot)}\n`;
+                        
+                        // 按場地分組
+                        const courtGroups = {};
+                        timeRegistrations.forEach(reg => {
+                            if (!courtGroups[reg.court]) {
+                                courtGroups[reg.court] = [];
+                            }
+                            courtGroups[reg.court].push(reg);
+                        });
+                        
+                        // 輸出每個場地的參與者
+                        Object.keys(courtGroups).sort().forEach(courtId => {
+                            const courtRegs = courtGroups[courtId];
+                            const level = courts[courtId].level;
+                            
+                            csvContent += `Court ${courtId} (Level ${level}) - ${courtRegs.length}人\n`;
+                            
+                            courtRegs.forEach((reg, index) => {
+                                csvContent += `,${reg.name},${formatPhoneNumber(reg.phone)}\n`;
+                            });
+                            
+                            csvContent += '\n'; // 空行分隔
+                        });
+                        
+                        csvContent += '\n'; // 時間段之間的空行
+                    }
+                });
+    
+                const encodedUri = encodeURI("data:text/csv;charset=utf-8," + csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", `EC_Sports_時間段分組_${new Date().toISOString().split('T')[0]}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                showSuccess('時間段分組數據導出成功');
+            }
+    
+            // 新增按鈕：導出時間段分組數據
+            function addTimeSlotExportButton() {
+                const adminControls = document.querySelector('.admin-controls');
+                const existingBtn = document.getElementById('export-time-slots');
+                
+                if (!existingBtn) {
+                    const timeSlotExportBtn = document.createElement('button');
+                    timeSlotExportBtn.className = 'admin-btn';
+                    timeSlotExportBtn.innerHTML = '<i class="fas fa-clock"></i> 導出時間段分組';
+                    timeSlotExportBtn.id = 'export-time-slots';
+                    timeSlotExportBtn.addEventListener('click', exportStructuredTimeSlotsCSV);
+                    
+                    // 插入到導出數據按鈕後面
+                    adminControls.appendChild(timeSlotExportBtn);
+                }
+            }
+    
+            // 初始化時添加時間段導出按鈕
+            addTimeSlotExportButton();
+            
+            // 初始更新
+            updateSelectionSummary();
         });
-        
-        // 初始更新
-        updateSelectionSummary();
-    });
-</script>
+    </script>
 </body>
 </html>
