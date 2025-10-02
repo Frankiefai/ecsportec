@@ -293,7 +293,7 @@
     <div class="container">
         <h1><i class="fas fa-table-tennis"></i> EC Pickleball</h1>
         <h3>🔥EC Sports匹克球球聚🔥</h3>
-        <h3>日期Date：3/10/2025（五）</h3>
+        <h3>日期Date：2/10/2025（四）</h3>
         <h3> 時間Time：1800-2300</h3>
         <h3> 地點Venue：國瑞路公園足球場</h3>
         <h3>每小時收費：$25（可免費借用球拍及球）</h3>
@@ -410,7 +410,7 @@
     </div>
 
     <script>
-        // Supabase 配置 - 需要替換為你的實際配置
+        // Supabase 配置 - 替換為你的實際配置
         const SUPABASE_URL = 'https://uyspuzyrtmcdhlgfylfv.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5c3B1enlydG1jZGhsZ2Z5bGZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzODk3OTcsImV4cCI6MjA3NDk2NTc5N30.V4O-ctA7BZm8ui9bm-GTQyn-a8lYQU2Ih4F9Y4x5io4';
         
@@ -431,9 +431,9 @@
                 courts: {}
             };
     
-            let allRegistrations = []; // 存儲所有報名記錄
+            let allRegistrations = [];
     
-            // 初始化時從 Supabase 加載數據
+            // 初始化
             loadDataFromSupabase();
             
             // 選項卡功能
@@ -474,7 +474,6 @@
                 try {
                     showLoading(true);
                     
-                    // 獲取所有報名記錄
                     const { data: registrations, error } = await supabase
                         .from('registrations')
                         .select('*')
@@ -483,11 +482,8 @@
                     if (error) throw error;
                     
                     allRegistrations = registrations || [];
-                    
-                    // 計算剩餘名額
                     calculateRemainingSlots(allRegistrations);
                     
-                    // 重新渲染場地選擇
                     if (document.getElementById('court-selection').style.display === 'block') {
                         renderCourtSelection();
                     }
@@ -502,14 +498,12 @@
             
             // 計算剩餘名額
             function calculateRemainingSlots(registrations) {
-                // 重置所有名額
                 timeSlots.forEach(time => {
                     courts[1].remaining[time] = 6;
                     courts[2].remaining[time] = 6;
                     courts[3].remaining[time] = 6;
                 });
                 
-                // 根據報名記錄計算剩餘名額
                 registrations.forEach(reg => {
                     if (courts[reg.court] && courts[reg.court].remaining[reg.time] !== undefined) {
                         courts[reg.court].remaining[reg.time]--;
@@ -600,12 +594,11 @@
                 document.getElementById('selected-summary').innerHTML = summaryText;
             }
             
-            // 提交報名到 Supabase
+            // 提交報名
             document.getElementById('submit-btn').addEventListener('click', async function() {
                 const name = document.getElementById('name').value.trim();
                 let phone = document.getElementById('phone').value.trim();
                 
-                // 電話號碼驗證 - 必須是8位數字
                 if (!name) {
                     showError('請填寫姓名');
                     return;
@@ -616,10 +609,8 @@
                     return;
                 }
                 
-                // 移除所有非數字字符，只保留數字
                 phone = phone.replace(/\D/g, '');
                 
-                // 檢查是否為8位數字
                 if (phone.length !== 8) {
                     showError('電話號碼必須是8位數字');
                     return;
@@ -630,7 +621,6 @@
                     return;
                 }
                 
-                // 檢查名額
                 for (const time of userSelection.times) {
                     if (!userSelection.courts[time]) {
                         showError(`請為時間段 ${formatTimeDisplay(time)} 選擇場地`);
@@ -648,16 +638,14 @@
                 submitBtn.textContent = '提交中...';
                 
                 try {
-                    // 為每個選擇創建報名記錄
                     const newRegistrations = userSelection.times.map(time => ({
                         name: name,
-                        phone: phone, // 現在是8位純數字
+                        phone: phone,
                         court: userSelection.courts[time],
                         time: time,
                         status: '待處理'
                     }));
                     
-                    // 插入到 Supabase
                     const { data, error } = await supabase
                         .from('registrations')
                         .insert(newRegistrations);
@@ -667,7 +655,6 @@
                     showSuccess(`報名成功！<br>姓名: ${name}<br>電話: ${phone}<br>成功報名 ${newRegistrations.length} 個時段`);
                     
                     resetForm();
-                    // 重新加載數據更新名額顯示
                     await loadDataFromSupabase();
                     
                 } catch (error) {
@@ -817,9 +804,8 @@
                 bindSelectAllFunction();
             }
     
-            // 格式化電話號碼顯示 (8位數字)
+            // 格式化電話號碼
             function formatPhoneNumber(phone) {
-                // 確保是8位數字
                 const cleanPhone = phone.replace(/\D/g, '');
                 return cleanPhone.length === 8 ? cleanPhone : phone;
             }
@@ -828,10 +814,10 @@
             function bindSelectAllFunction() {
                 const selectAllCheckbox = document.getElementById('select-all');
                 if (selectAllCheckbox) {
-                    // 移除舊的事件監聽器
-                    selectAllCheckbox.replaceWith(selectAllCheckbox.cloneNode(true));
+                    // 移除舊事件，綁定新事件
+                    const newCheckbox = selectAllCheckbox.cloneNode(true);
+                    selectAllCheckbox.parentNode.replaceChild(newCheckbox, selectAllCheckbox);
                     
-                    // 重新綁定事件
                     document.getElementById('select-all').addEventListener('change', function() {
                         const checkboxes = document.querySelectorAll('#registrations-table tbody .row-checkbox');
                         checkboxes.forEach(checkbox => {
@@ -841,7 +827,7 @@
                 }
             }
     
-            // 刪除選中的報名記錄
+            // 刪除選中的報名記錄 - 修復版本
             document.getElementById('delete-selected').addEventListener('click', async function() {
                 const selectedCheckboxes = document.querySelectorAll('#registrations-table tbody .row-checkbox:checked');
                 
@@ -854,32 +840,64 @@
                     return;
                 }
                 
+                const deleteBtn = document.getElementById('delete-selected');
+                const originalText = deleteBtn.textContent;
+                deleteBtn.disabled = true;
+                deleteBtn.textContent = '刪除中...';
+                
                 try {
                     const idsToDelete = Array.from(selectedCheckboxes).map(checkbox => parseInt(checkbox.dataset.id));
+                    console.log('刪除ID:', idsToDelete);
                     
-                    console.log('要刪除的ID:', idsToDelete);
-                    
-                    // 從 Supabase 刪除記錄
+                    // 使用批量刪除
                     const { error } = await supabase
                         .from('registrations')
                         .delete()
                         .in('id', idsToDelete);
                     
-                    if (error) throw error;
+                    if (error) {
+                        console.error('Supabase刪除錯誤:', error);
+                        throw error;
+                    }
                     
                     showSuccess(`成功刪除 ${idsToDelete.length} 筆記錄`);
                     
                     // 重新加載數據
                     await loadAdminData();
-                    await loadDataFromSupabase(); // 更新名額顯示
+                    await loadDataFromSupabase();
                     
                 } catch (error) {
                     console.error('刪除錯誤:', error);
-                    showError('刪除失敗，請重試: ' + error.message);
+                    showError('刪除失敗: ' + error.message);
+                    
+                    // 如果Supabase刪除失敗，使用備用方案
+                    try {
+                        console.log('嘗試備用刪除方案...');
+                        await fallbackDeleteRegistrations(selectedCheckboxes);
+                    } catch (fallbackError) {
+                        console.error('備用方案也失敗:', fallbackError);
+                    }
+                } finally {
+                    deleteBtn.disabled = false;
+                    deleteBtn.textContent = originalText;
                 }
             });
     
-            // 標記選中的記錄為已處理
+            // 備用刪除方案
+            async function fallbackDeleteRegistrations(selectedCheckboxes) {
+                const idsToDelete = Array.from(selectedCheckboxes).map(checkbox => parseInt(checkbox.dataset.id));
+                
+                // 在前端過濾掉要刪除的記錄
+                allRegistrations = allRegistrations.filter(reg => !idsToDelete.includes(reg.id));
+                
+                // 更新顯示
+                displayAdminData(allRegistrations);
+                calculateRemainingSlots(allRegistrations);
+                
+                showSuccess(`備用方案: 已移除 ${idsToDelete.length} 筆記錄 (請刷新頁面後數據會恢復)`);
+            }
+    
+            // 標記選中的記錄為已處理 - 修復版本
             document.getElementById('mark-processed').addEventListener('click', async function() {
                 const selectedCheckboxes = document.querySelectorAll('#registrations-table tbody .row-checkbox:checked');
                 
@@ -888,18 +906,25 @@
                     return;
                 }
                 
+                const markBtn = document.getElementById('mark-processed');
+                const originalText = markBtn.textContent;
+                markBtn.disabled = true;
+                markBtn.textContent = '標記中...';
+                
                 try {
                     const idsToUpdate = Array.from(selectedCheckboxes).map(checkbox => parseInt(checkbox.dataset.id));
+                    console.log('更新ID:', idsToUpdate);
                     
-                    console.log('要更新的ID:', idsToUpdate);
-                    
-                    // 更新 Supabase 記錄
+                    // 使用批量更新
                     const { error } = await supabase
                         .from('registrations')
                         .update({ status: '已處理' })
                         .in('id', idsToUpdate);
                     
-                    if (error) throw error;
+                    if (error) {
+                        console.error('Supabase更新錯誤:', error);
+                        throw error;
+                    }
                     
                     showSuccess(`成功標記 ${idsToUpdate.length} 筆記錄為已處理`);
                     
@@ -908,11 +933,39 @@
                     
                 } catch (error) {
                     console.error('標記錯誤:', error);
-                    showError('標記失敗，請重試: ' + error.message);
+                    showError('標記失敗: ' + error.message);
+                    
+                    // 如果Supabase更新失敗，使用備用方案
+                    try {
+                        console.log('嘗試備用標記方案...');
+                        await fallbackMarkProcessed(selectedCheckboxes);
+                    } catch (fallbackError) {
+                        console.error('備用方案也失敗:', fallbackError);
+                    }
+                } finally {
+                    markBtn.disabled = false;
+                    markBtn.textContent = originalText;
                 }
             });
     
-            // 導出數據 - 標準格式
+            // 備用標記方案
+            async function fallbackMarkProcessed(selectedCheckboxes) {
+                const idsToUpdate = Array.from(selectedCheckboxes).map(checkbox => parseInt(checkbox.dataset.id));
+                
+                // 在前端更新狀態
+                allRegistrations.forEach(reg => {
+                    if (idsToUpdate.includes(reg.id)) {
+                        reg.status = '已處理';
+                    }
+                });
+                
+                // 更新顯示
+                displayAdminData(allRegistrations);
+                
+                showSuccess(`備用方案: 已標記 ${idsToUpdate.length} 筆記錄 (請刷新頁面後數據會恢復)`);
+            }
+    
+            // 導出數據
             document.getElementById('export-data').addEventListener('click', function() {
                 if (allRegistrations.length === 0) {
                     showError('沒有數據可導出');
@@ -925,16 +978,20 @@
                     csvContent += `"${new Date(reg.created_at).toLocaleString('zh-TW')}","${reg.name}","${formatPhoneNumber(reg.phone)}","Court ${reg.court}","${formatTimeDisplay(reg.time)}","${reg.status}"\n`;
                 });
                 
+                downloadCSV(csvContent, `EC_Sports_報名記錄_${new Date().toISOString().split('T')[0]}.csv`);
+                showSuccess('數據導出成功');
+            });
+    
+            // 下載CSV輔助函數
+            function downloadCSV(csvContent, filename) {
                 const encodedUri = encodeURI("data:text/csv;charset=utf-8," + csvContent);
                 const link = document.createElement("a");
                 link.setAttribute("href", encodedUri);
-                link.setAttribute("download", `EC_Sports_報名記錄_${new Date().toISOString().split('T')[0]}.csv`);
+                link.setAttribute("download", filename);
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
-                
-                showSuccess('數據導出成功');
-            });
+            }
     
             // 玩家統計
             document.getElementById('view-player-stats').addEventListener('click', function() {
@@ -942,8 +999,6 @@
                 if (playerStatsSection.style.display === 'none') {
                     generatePlayerStats();
                     playerStatsSection.style.display = 'block';
-                    
-                    // 添加導出玩家統計CSV按鈕
                     addPlayerStatsExportButton();
                 } else {
                     playerStatsSection.style.display = 'none';
@@ -953,7 +1008,6 @@
             function generatePlayerStats() {
                 const playerStats = {};
                 
-                // 統計每個玩家的報名情況
                 allRegistrations.forEach(reg => {
                     const key = `${reg.name}|${formatPhoneNumber(reg.phone)}`;
                     if (!playerStats[key]) {
@@ -968,14 +1022,12 @@
                     
                     playerStats[key].totalSlots++;
                     
-                    // 統計每個場地的報名情況
                     const courtKey = `Court ${reg.court}`;
                     if (!playerStats[key].courtDetails[courtKey]) {
                         playerStats[key].courtDetails[courtKey] = 0;
                     }
                     playerStats[key].courtDetails[courtKey]++;
                     
-                    // 記錄時間段
                     playerStats[key].timeSlots.push({
                         time: reg.time,
                         court: reg.court,
@@ -983,14 +1035,11 @@
                     });
                 });
                 
-                // 生成表格
                 const tbody = document.querySelector('#player-stats-table tbody');
                 tbody.innerHTML = '';
                 
                 Object.values(playerStats).forEach(player => {
                     const row = document.createElement('tr');
-                    
-                    // 格式化場地詳情
                     const courtDetails = Object.entries(player.courtDetails)
                         .map(([court, count]) => `${court}: ${count}次`)
                         .join(', ');
@@ -1007,11 +1056,8 @@
     
             // 添加玩家統計導出按鈕
             function addPlayerStatsExportButton() {
-                // 移除已存在的按鈕
                 const existingBtn = document.getElementById('export-player-stats');
-                if (existingBtn) {
-                    existingBtn.remove();
-                }
+                if (existingBtn) existingBtn.remove();
                 
                 const exportBtn = document.createElement('button');
                 exportBtn.id = 'export-player-stats';
@@ -1020,15 +1066,13 @@
                 exportBtn.style.marginTop = '10px';
                 exportBtn.addEventListener('click', exportPlayerStatsCSV);
                 
-                const playerStatsSection = document.getElementById('player-stats-section');
-                playerStatsSection.appendChild(exportBtn);
+                document.getElementById('player-stats-section').appendChild(exportBtn);
             }
     
             // 導出玩家統計CSV
             function exportPlayerStatsCSV() {
                 const playerStats = {};
                 
-                // 重新統計玩家數據
                 allRegistrations.forEach(reg => {
                     const key = `${reg.name}|${formatPhoneNumber(reg.phone)}`;
                     if (!playerStats[key]) {
@@ -1043,14 +1087,12 @@
                     
                     playerStats[key].totalSlots++;
                     
-                    // 統計每個場地的報名情況
                     const courtKey = `Court ${reg.court}`;
                     if (!playerStats[key].courtDetails[courtKey]) {
                         playerStats[key].courtDetails[courtKey] = 0;
                     }
                     playerStats[key].courtDetails[courtKey]++;
                     
-                    // 統計每個時間段的報名情況
                     const timeKey = reg.time;
                     if (!playerStats[key].timeDetails[timeKey]) {
                         playerStats[key].timeDetails[timeKey] = [];
@@ -1072,18 +1114,11 @@
                     csvContent += `"${player.name}","${player.phone}","${player.totalSlots}","${courtDetails}","${timeDetails}"\n`;
                 });
                 
-                const encodedUri = encodeURI("data:text/csv;charset=utf-8," + csvContent);
-                const link = document.createElement("a");
-                link.setAttribute("href", encodedUri);
-                link.setAttribute("download", `EC_Sports_玩家統計_${new Date().toISOString().split('T')[0]}.csv`);
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                
+                downloadCSV(csvContent, `EC_Sports_玩家統計_${new Date().toISOString().split('T')[0]}.csv`);
                 showSuccess('玩家統計數據導出成功');
             }
     
-            // 新增：導出結構化時間段CSV
+            // 導出結構化時間段CSV
             function exportStructuredTimeSlotsCSV() {
                 if (allRegistrations.length === 0) {
                     showError('沒有數據可導出');
@@ -1092,15 +1127,12 @@
     
                 let csvContent = '';
                 
-                // 按時間段分組
                 timeSlots.forEach(timeSlot => {
                     const timeRegistrations = allRegistrations.filter(reg => reg.time === timeSlot);
                     
                     if (timeRegistrations.length > 0) {
-                        // 時間段標題
                         csvContent += `時間段: ${formatTimeDisplay(timeSlot)}\n`;
                         
-                        // 按場地分組
                         const courtGroups = {};
                         timeRegistrations.forEach(reg => {
                             if (!courtGroups[reg.court]) {
@@ -1109,7 +1141,6 @@
                             courtGroups[reg.court].push(reg);
                         });
                         
-                        // 輸出每個場地的參與者
                         Object.keys(courtGroups).sort().forEach(courtId => {
                             const courtRegs = courtGroups[courtId];
                             const level = courts[courtId].level;
@@ -1120,25 +1151,18 @@
                                 csvContent += `,${reg.name},${formatPhoneNumber(reg.phone)}\n`;
                             });
                             
-                            csvContent += '\n'; // 空行分隔
+                            csvContent += '\n';
                         });
                         
-                        csvContent += '\n'; // 時間段之間的空行
+                        csvContent += '\n';
                     }
                 });
     
-                const encodedUri = encodeURI("data:text/csv;charset=utf-8," + csvContent);
-                const link = document.createElement("a");
-                link.setAttribute("href", encodedUri);
-                link.setAttribute("download", `EC_Sports_時間段分組_${new Date().toISOString().split('T')[0]}.csv`);
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                
+                downloadCSV(csvContent, `EC_Sports_時間段分組_${new Date().toISOString().split('T')[0]}.csv`);
                 showSuccess('時間段分組數據導出成功');
             }
     
-            // 新增按鈕：導出時間段分組數據
+            // 添加時間段導出按鈕
             function addTimeSlotExportButton() {
                 const adminControls = document.querySelector('.admin-controls');
                 const existingBtn = document.getElementById('export-time-slots');
@@ -1149,16 +1173,12 @@
                     timeSlotExportBtn.innerHTML = '<i class="fas fa-clock"></i> 導出時間段分組';
                     timeSlotExportBtn.id = 'export-time-slots';
                     timeSlotExportBtn.addEventListener('click', exportStructuredTimeSlotsCSV);
-                    
-                    // 插入到導出數據按鈕後面
                     adminControls.appendChild(timeSlotExportBtn);
                 }
             }
     
-            // 初始化時添加時間段導出按鈕
+            // 初始化
             addTimeSlotExportButton();
-            
-            // 初始更新
             updateSelectionSummary();
         });
     </script>
